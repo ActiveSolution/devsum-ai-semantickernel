@@ -1,0 +1,175 @@
+﻿@inherits HomeBase
+@page "/"
+@using Active.Toolbox.Core
+@using Markdig
+
+@rendermode InteractiveServer
+@*  @(new  InteractiveServerRenderMode(prerender:false)) *@
+
+<PageTitle>Copilot</PageTitle>
+
+<div class="chat-panel">
+    <div class="chat-header">
+        <div class="container">
+            <h1>
+                Active Solution Copilot
+            </h1>
+        </div>
+    </div>
+    <div class="chat-body">
+        <div class="chat-body-left">
+            <h2>Chat</h2>
+
+            <div class="chat-conversation-messages">
+                @foreach (var message in _chatMessages.UserChatMessages)
+                {
+                    <div class="message ">
+                        <div class="message-icon">
+                            @(message.Role == "Assistant" ? "🤖" : "👤")
+                        </div>
+
+                        <div class="message-content">
+                            <div>
+                                @((MarkupString)Markdown.ToHtml(message.Content))
+                                @if (!String.IsNullOrEmpty(_currentFunctionCall) && message.Role == "Assistant" && _chatMessages.UserChatMessages.Last() == message)
+                                {
+                                    <span class="functioncall">Calling function @{
+                                            @_currentFunctionCall
+                                        }...</span>
+                                }
+
+                                @if (_isWaitingForResponse && message.Role == "Assistant" && _chatMessages.UserChatMessages.Last() == message)
+                                {
+                                    <span class="dot-pulse"></span>
+                                }
+                                <div class="message-content-source">
+                                    <ul>
+                                        @{
+                                            int i = 1;
+                                        }
+                                        @foreach (var source in message.Sources)
+                                        {
+                                            <li>
+                                                @i: @source.Title
+                                                <div class="sourcecontent">
+                                                    @source.SourceContent
+                                                </div>
+                                            </li>
+
+                                            i = i + 1;
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="chat-body-middle" hidden="@(!_showFunctionCalls)" style="overflow-y:auto">
+
+            <h2>Function calls</h2>
+            @foreach (var message in _chatMessages.DebugMessages)
+            {
+                <div class="message">
+                    <div class="message-content">
+                        <div>
+                            <strong>@message.FunctionName</strong><br />
+                            <p>
+                                <em>Input: </em> @message.Input<br />
+                                <details>
+                                    <summary>Output:</summary>
+                                    @((MarkupString)Markdown.ToHtml($"```json\n{message.Output}```").Replace("pre>", "div>"))
+                                </details>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="chat-body-right">
+            <h2>Settings</h2>
+
+            <div class="chat-settings">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" type="button" @onclick="ResetChat">Clear chat</button>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="_showFunctionCalls" @bind="_showFunctionCalls">
+                    <label class="form-check-label" for="_showFunctionCalls">Show function calls</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="_enableSpeech" @bind="_enableSpeech">
+                    <label class="form-check-label" for="_enableSpeech">Enable speech</label>
+                </div>
+
+                 <h2>Model</h2>
+                <select class="form-select" @bind="_openAiModelId">
+                    @foreach (var model in _availableModels)
+                    {
+                        <option value="@model">@model</option>
+                    }
+                </select>
+                <h2>Language</h2>
+                <select class="form-select" @bind="UserLanguage">
+                    <option value="sv-SE" selected>Svenska (sv-SE)</option>
+                    <option value="en-US">English (en-US)</option>
+                </select>
+
+                <h2>Plugins</h2>
+                @foreach (var plugin in Kernel.Plugins)
+                {
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="_plugin_@plugin.Name" @bind="_pluginsEnabled[plugin.Name]">
+                        <label class="form-check-label" for="_plugin_@plugin.Name" title="@plugin.Description">@plugin.Name</label>
+                    </div>
+                }
+                <b>Search mode</b>
+                <div class="form-switch">
+
+                    <input type="radio" checked="@(searchMode == RAGSearchMode.VectorEmbeddings)"
+                           name="SearchMode" @onchange="@(() => searchMode = RAGSearchMode.VectorEmbeddings)" />
+                    <label>KernelMemory</label>
+                    <input type="radio" checked="@(searchMode == RAGSearchMode.AISearchSemantic)"
+                           name="SearchMode" @onchange="@(() => searchMode = RAGSearchMode.AISearchSemantic)" />
+                    <label>AI Search</label>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="chat-footer">
+        <div class="container">
+            <img class="chat-footer-logo" src="https://assets.activesolution.se/press/logotype/v2/activesolution-logo-white.svg" />
+            
+            <div class="input-group">
+                <input type="text" @bind="_newMessage" @onkeyup="HandleKeyUp" class="form-control" autofocus=""/>
+                <button class="btn btn-dark" type="button" @onclick="SendMessage">Send</button>
+            </div>
+
+             <button type="button" class="btn btn-lg btn-dark chat-listen" @onclick=@OnRecognizeSpeechClick>
+                @if (_isRecognizingSpeech)
+                {
+                    <span>⏹️ Stop</span>
+
+                }
+                else
+                {
+                    <span>🎙️ Listen</span>
+                }
+            </button>
+        </div>
+    </div>
+    @if (!String.IsNullOrEmpty(_error))
+    {
+        <div class="chat-error">
+            @_error
+            <a class="dismiss">
+                <button type="button" @onclick="CloseError">X</button>
+            </a>
+        </div>
+    }
+
+</div>
