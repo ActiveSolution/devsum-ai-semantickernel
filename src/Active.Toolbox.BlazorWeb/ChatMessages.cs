@@ -17,14 +17,6 @@ public class ChatMessages()
         UserChatMessages.Add(new ChatMessage("Assistant", message));
     }
 
-    public void AddCopilotChat(string message, List<SourceReference> sources)
-    {
-        UserChatMessages.Add(new ChatMessage("Assistant", message)
-        {
-            Sources = sources
-        });
-    }
-
     public void AddDebugMessageForFunction(string functionName, object? arguments, object? result = null)
     {
         JsonSerializerOptions jso = new JsonSerializerOptions();
@@ -64,27 +56,12 @@ public class ChatMessages()
         var lastMessage = UserChatMessages.Last();
         lastMessage.Content += message;
     }
-
-    public void AppendChat(string message, List<SourceReference> sources)
-    {
-        var lastMessage = UserChatMessages.Last();
-        lastMessage.Content += message;
-        lastMessage.Sources.AddRange(sources);
-    }
 }
 
 public class ChatMessage(string role, string content)
 {
     public string Role { get; set; } = role;
     public string Content { get; set; } = content;
-    public List<SourceReference> Sources { get; set; } = new List<SourceReference>();
-}
-
-public class SourceReference
-{
-    public string Title { get; set; }
-    public string Url { get; set; }
-    public string SourceContent { get; set; }
 }
 
 public class DebugMessage(string functionName, string input, string output)

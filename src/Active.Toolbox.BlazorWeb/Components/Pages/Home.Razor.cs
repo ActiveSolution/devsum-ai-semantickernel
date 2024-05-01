@@ -1,32 +1,19 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 using Microsoft.SemanticKernel;
 
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Active.Toolbox.Core;
-using Microsoft.KernelMemory;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Active.Toolbox.BlazorWeb.Components.Pages
 {
     public class HomeBase : ComponentBase
     {
-        private const string AssistantIntroMessage = "Hej! Jag är Active Copilot. Vad kan jag hjälpa dig med?";
+        private const string AssistantIntroMessage = "Hej! Jag är en liten Copilot. Vad kan jag hjälpa dig med?";
 
         [Inject]
         protected Kernel Kernel { get; set; } = default!;
-        [Inject]
-        IKernelMemory KernelMemory { get; set; } = default!;
-        [Inject]
-        ISpeechSynthesisService SpeechSynthesis { get; set; } = default!;
-        [Inject]
-        ISpeechRecognitionService SpeechRecognition { get; set; } = default!;
-        [Inject]
-        IConfiguration config { get; set; } = default!;
-        [Inject]
-        AuthenticationStateProvider authenticationStateProvider { get; set; } = default!;
 
         protected Dictionary<string, bool> _pluginsEnabled = [];
 
@@ -35,8 +22,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
         protected bool _enableSpeech = false;
 
         protected string _error = string.Empty;
-
-        protected string _diagQuestion = string.Empty;
 
         protected string _openAiModelId = string.Empty;
         protected string _userLanguage = "sv-SE";
@@ -54,7 +39,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
             }
         }
 
-        protected RAGSearchMode searchMode = RAGSearchMode.AISearchSemantic;
         protected string _newMessage = string.Empty;
         protected ChatMessages _chatMessages = new();
         protected ChatHistory _history = [];
@@ -64,16 +48,10 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
             _chatMessages = new ChatMessages();
             _chatMessages.AddCopilotChat(AssistantIntroMessage);
 
-            var authState = await authenticationStateProvider.GetAuthenticationStateAsync();
-            var currentUserEmail = authState.User.Identity!.Name;
-            var currentUserName = authState.User.Claims.First(c => c.Type == "name")?.Value;
-
             _history = [
-                new ChatMessageContent(AuthorRole.System, CopilotPocCore.GetSystemPrompt(currentUserName!, currentUserEmail!)),
+                new ChatMessageContent(AuthorRole.System, CopilotPocCore.GetSystemPrompt()),
                 new ChatMessageContent(AuthorRole.Assistant, AssistantIntroMessage),
             ];
-            //var helloMessageResult = await Kernel.InvokePromptAsync($"Write a short greeting to {currentUserName}. Example: Hello John Doe, what can I help you with today?. Use language {UserLanguage}");
-            //_chatMessages.AddCopilotChat(helloMessageResult.ToString());
         }
 
         protected void CloseError()
@@ -86,7 +64,7 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
         {
             base.OnInitialized();
 
-            _availableModels = Kernel.GetAllServices<IChatCompletionService>().SelectMany(c => c.Attributes).Select(a => a.Value.ToString()).Distinct().ToList();
+            _availableModels = Kernel.GetAllServices<IChatCompletionService>().SelectMany(c => c.Attributes).Select(a => a.Value.ToString()).Distinct().ToList()!;
             _openAiModelId = _availableModels.First();
 
             _pluginsEnabled = Kernel.Plugins.ToDictionary(x => x.Name, x => true);
@@ -125,15 +103,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
 
         protected async override Task OnInitializedAsync()
         {
-            //foreach (var file in Directory.EnumerateFiles(@"C:\Users\jakobe\Documents\cv"))
-            //{
-            //    Console.WriteLine("Importing " + Path.GetFileName(file));
-            //    var i = await KernelMemory.ImportDocumentAsync(file, index: "cv");
-            //}
-
-            // var i = kernelMemory.ImportDocumentAsync(@".\data\Personalhandbok.pdf").Result;
-            // i = kernelMemory.ImportDocumentAsync(@".\data\Arbetsmiljöhandbok hos Active Solution Sverige AB.docx").Result;
-
             await ResetChat();
         }
 
@@ -164,15 +133,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
                 localKernel.Plugins.Remove(localKernel.Plugins[pluginEnabled.Key]);
             }
 
-            if( searchMode == RAGSearchMode.VectorEmbeddings)
-            {
-                localKernel.Plugins.Remove(localKernel.Plugins["RAG"]);
-            }
-            else if (searchMode == RAGSearchMode.AISearchSemantic)
-            {
-                localKernel.Plugins.Remove(localKernel.Plugins["KernelMemory"]);
-            }
-
             var chatCompletionService = localKernel.GetAllServices<IChatCompletionService>().First(c => c.Attributes.Any(a => a.Value.ToString() == _openAiModelId));
 
             var openAiPromptExecutionSettings = new OpenAIPromptExecutionSettings()
@@ -188,6 +148,7 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
             {
                 var fullMessage = "";
                 _isWaitingForResponse = true;
+
                 var result = chatCompletionService.GetStreamingChatMessageContentsAsync(
                     _history,
                     executionSettings: openAiPromptExecutionSettings,
@@ -206,16 +167,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
 
                 _history.AddAssistantMessage(fullMessage);
                 _isWaitingForResponse = false;
-                if (_enableSpeech)
-                {
-                    await SpeechSynthesis.SpeakAsync(new SpeechSynthesisUtterance()
-                    {
-                        Text = fullMessage,
-                        Lang = UserLanguage,
-                        Pitch = 1.0,
-                        Rate = 1.0
-                    });
-                }
             }
             catch (Exception ex)
             {
@@ -236,59 +187,6 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
 				StateHasChanged();
 			}
         }
-
-        protected async Task OnRecognizeSpeechClick()
-        {
-            if (_isRecognizingSpeech)
-            {
-                await SpeechRecognition.CancelSpeechRecognitionAsync(false);
-                await SendMessage();
-                StateHasChanged();
-            }
-            else
-            {
-                _recognitionSubscription?.Dispose();
-                _recognitionSubscription = await SpeechRecognition.RecognizeSpeechAsync(
-                    UserLanguage,
-                    OnRecognized,
-                    null,
-                    OnStarted,
-                    OnEnded);
-            }
-        }
-
-        IDisposable? _recognitionSubscription;
-        protected bool _isRecognizingSpeech = false;
-
-        Task OnStarted() =>
-            InvokeAsync(() =>
-            {
-                _isRecognizingSpeech = true;
-                StateHasChanged();
-            });
-
-        Task OnEnded() =>
-            InvokeAsync(async () =>
-            {
-                _isRecognizingSpeech = false;
-                await SendMessage();
-                StateHasChanged();
-            });
-
-        Task OnRecognized(string transcript) =>
-            InvokeAsync(() =>
-            {
-                _newMessage = _newMessage switch
-                {
-                    "" => transcript,
-                    _ => $"{transcript.Trim()} {transcript}".Trim()
-                };
-
-                StateHasChanged();
-            });
-
-        public void Dispose() => _recognitionSubscription?.Dispose();
-
     }
 
 }
