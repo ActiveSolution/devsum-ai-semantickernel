@@ -1,5 +1,4 @@
 using Active.Toolbox.BlazorWeb.Components;
-using Active.Toolbox.Core.Plugins;
 using Active.Toolbox.Core.Plugins.Shelly;
 using Microsoft.SemanticKernel;
 
@@ -29,11 +28,18 @@ builder.Services.AddSingleton(x =>
 
     var kernel = kernelBuilder.Build();
 
-    kernel.Plugins.AddFromType<MathPlugin>("Math");
-    kernel.Plugins.AddFromType<TimePlugin>("Time");
-    kernel.Plugins.AddFromObject(new ShellyPlugin(shellyPluginConfig), "Shelly");
+	kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.MathPlugin>("Math");
+    kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.TimePlugin>("Time");
+	kernel.Plugins.AddFromObject(new ShellyPlugin(shellyPluginConfig), "Shelly");
 
-    return kernel;
+	// Built-in plugins
+	//#pragma warning disable SKEXP0050
+	//kernel.Plugins.AddFromType<FileIOPlugin>("FileIO");
+	//kernel.Plugins.AddFromType<ConversationSummaryPlugin>("ConversationSummary");
+	//kernel.Plugins.AddFromType<Microsoft.SemanticKernel.Plugins.Core.WaitPlugin>("Wait");
+	//#pragma warning restore SKEXP0050
+
+	return kernel;
 });
 
 var app = builder.Build();
