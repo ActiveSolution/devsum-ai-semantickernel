@@ -1,5 +1,4 @@
 using Active.Toolbox.BlazorWeb.Components;
-using Active.Toolbox.Core.Plugins.Shelly;
 using Microsoft.SemanticKernel;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,11 +6,6 @@ var configuration = builder.Configuration;
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-var shellyPluginConfig = new ShellyPluginConfig(
-    GetConfig("Shelly:Url"),
-    GetConfig("Shelly:AuthKey")
-);
 
 builder.Services.AddSingleton(x =>
 {
@@ -30,7 +24,6 @@ builder.Services.AddSingleton(x =>
 
 	kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.MathPlugin>("Math");
     kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.TimePlugin>("Time");
-	kernel.Plugins.AddFromObject(new ShellyPlugin(shellyPluginConfig), "Shelly");
 
 	// Built-in plugins
 	//#pragma warning disable SKEXP0050

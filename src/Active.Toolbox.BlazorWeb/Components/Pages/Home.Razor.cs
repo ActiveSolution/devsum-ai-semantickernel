@@ -10,7 +10,7 @@ namespace Active.Toolbox.BlazorWeb.Components.Pages
 {
     public class HomeBase : ComponentBase
     {
-        private const string AssistantIntroMessage = "Hej! Jag är en liten Copilot. Vad kan jag hjälpa dig med?";
+        private const string AssistantIntroMessage = "Hi! I am your helpful copilot, what can I do for you?";
 
         [Inject]
         protected Kernel Kernel { get; set; } = default!;
