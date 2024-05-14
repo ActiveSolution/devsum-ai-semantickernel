@@ -14,12 +14,17 @@ builder.Services.AddSingleton(x =>
 
     kernelBuilder.Services.AddLogging(c => c.AddConsole().SetMinimumLevel(LogLevel.Information));
 
-    kernelBuilder.Services.AddAzureOpenAIChatCompletion(
-        GetConfig("AzureOpenAi:Deployment"),
-        GetConfig("AzureOpenAi:Endpoint"),
-        GetConfig("AzureOpenAi:ApiKey")
-    );
-
+    if(!String.IsNullOrEmpty(configuration["OpenAi:ApiKey"]))
+    {
+        kernelBuilder.Services.AddOpenAIChatCompletion(configuration["OpenAi:Model"]!, configuration["OpenAi:ApiKey"]!);
+	}
+    else { 
+	    kernelBuilder.Services.AddAzureOpenAIChatCompletion(
+            GetConfig("AzureOpenAi:Deployment"),
+            GetConfig("AzureOpenAi:Endpoint"),
+            GetConfig("AzureOpenAi:ApiKey")
+        );
+    }
     var kernel = kernelBuilder.Build();
 
 	kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.MathPlugin>("Math");
