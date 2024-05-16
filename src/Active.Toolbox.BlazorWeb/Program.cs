@@ -29,13 +29,14 @@ builder.Services.AddSingleton(x =>
 
 	kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.MathPlugin>("Math");
     kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.TimePlugin>("Time");
+    kernel.Plugins.AddFromType<Active.Toolbox.Core.Plugins.FileIOPlugin>("FileIO");
 
 	// Built-in plugins
-	//#pragma warning disable SKEXP0050
+	//#pragma warning disable SKEX
 	//kernel.Plugins.AddFromType<FileIOPlugin>("FileIO");
 	//kernel.Plugins.AddFromType<ConversationSummaryPlugin>("ConversationSummary");
 	//kernel.Plugins.AddFromType<Microsoft.SemanticKernel.Plugins.Core.WaitPlugin>("Wait");
-	//#pragma warning restore SKEXP0050
+	//#pragma warning restore SKEX
 
 	return kernel;
 });
